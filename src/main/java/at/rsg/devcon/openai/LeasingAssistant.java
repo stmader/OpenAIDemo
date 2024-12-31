@@ -3,6 +3,10 @@ package at.rsg.devcon.openai;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.*;
+import okhttp3.*;
+import okio.Buffer;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -49,6 +53,40 @@ public class LeasingAssistant {
             Ich kann dir helfen, das perfekte Auto zu finden.
             Ich kann dir auch erklären, wie Leasing funktioniert und welche Vorteile es hat.
             Frag mich einfach!""";
+    private static Interceptor interceptor = chain ->  {
+        Request request = chain.request();
+        System.out.println("Request: " + request.url());
+        if (request.body() != null && request.body() instanceof RequestBody) {
+            okio.Buffer buffer = new Buffer();
+            request.body().writeTo(buffer);
+            System.out.println("Body: " + buffer.readUtf8());
+        }
+        Response response = chain.proceed(request);
+        System.out.println("Response: " + response.code());
+        // Überprüfe, ob der Body vorhanden ist
+        ResponseBody responseBody = response.body();
+        if (responseBody != null) {
+            // ResponseBody in einen Buffer schreiben (kann dann erneut verwendet werden)
+            Buffer buffer = new Buffer();
+            responseBody.source().request(Long.MAX_VALUE); // Lese den kompletten Body
+            buffer.writeAll(responseBody.source());
+
+            // Body-Inhalt als String auslesen
+            String responseBodyString = buffer.clone().readUtf8();
+            System.out.println("Response Body: " + responseBodyString);
+
+            // Erstelle einen neuen ResponseBody, da der alte konsumiert wurde
+            ResponseBody newResponseBody =
+                    ResponseBody.create(responseBody.contentType(), buffer.size(), buffer);
+
+            // Erstelle einen neuen Response mit dem neuen Body
+            return response.newBuilder().body(newResponseBody).build();
+        }
+
+        // Gib den ursprünglichen Response zurück, wenn kein Body vorhanden ist
+        System.out.println("Response Body war LEER " );
+        return response;
+    };
 
     public static void main(String[] args) throws IOException {
         /* Initialisierung des OpenAI-Clients mit API-Key */
@@ -57,9 +95,15 @@ public class LeasingAssistant {
                 .build();
 
 
-        List<ChatCompletionMessageParam> chatMessages = new ArrayList<>(List.of(
-                createSystemMessageParam(SYSTEM_PROMPT_JSON),
-                createAssistantMessageParam(ASSISTANT_PROMPT)));
+//        List<ChatCompletionMessageParam> chatMessages = new ArrayList<>(List.of(
+//                createSystemMessageParam(SYSTEM_PROMPT_JSON),
+//                createAssistantMessageParam(ASSISTANT_PROMPT)));
+
+        // Build chat messages
+        JSONArray messages = new JSONArray();
+        messages.put(createSystemMessage(SYSTEM_PROMPT));
+        messages.put(createAssistantMessage(ASSISTANT_PROMPT));
+
 
         System.out.println("\n*****Impulsi****:\n" + ASSISTANT_PROMPT);
 
@@ -72,27 +116,28 @@ public class LeasingAssistant {
                 String userInput = InputHelper.readLine("\n*****Du****: \n");
 
                 // Eingabe des Nutzer zu den Messages hinzufügen
-                chatMessages.add(createUserMessageParam(userInput));
+                messages.put(createUserMessage(userInput));
 
                 // alle Messages an OpenAI API senden
-                ChatCompletionCreateParams params = ChatCompletionCreateParams.builder()
-                        .messages(chatMessages)
-                        .model(ChatModel.CHATGPT_4O_LATEST)
-                        .n(1)
-                        .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
-                        .build();
-                ChatCompletion chatCompletion = openAiClient.chat().completions().create(params);
-                
+//                ChatCompletionCreateParams params = ChatCompletionCreateParams.builder()
+//                        .messages(chatMessages)
+//                        .model(ChatModel.CHATGPT_4O_LATEST)
+//                        .n(1)
+////                        .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
+//                        .build();
+//                ChatCompletion chatCompletion = openAiClient.chat().completions().create(params);
+                ResponseBody result = sendChatCompletionRequest(messages);
+
 
                 //Antwort von OpenAI auswerten. Falls mehrere Antworten, einfach die erste nehmen. (Defaultmäßig gibt es nur eine)
-                String choice0 = chatCompletion.choices().get(0)
-                        .message().content().get();
+//                String choice0 = chatCompletion.choices().get(0)
+//                        .message().content().get();
 
                 // Antwort anzeigen
-                System.out.println("\n*****Impulsi****:\n" + choice0);
+                System.out.println("\n*****Impulsi****:\n" + result.string());
 
                 // Antwort von OpenAI zu den Messages hinzufügen
-                chatMessages.add(createAssistantMessageParam(choice0));
+//                chatMessages.add(createAssistantMessageParam(choice0));
 
             } catch (IOException e) {
                 System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());
@@ -101,25 +146,49 @@ public class LeasingAssistant {
         }
     }
 
-
-
-    private static ChatCompletionMessageParam createUserMessageParam(String userPrompt) {
-        return ChatCompletionMessageParam.ofChatCompletionUserMessageParam(
-                ChatCompletionUserMessageParam.builder()
-                        .role(ChatCompletionUserMessageParam.Role.USER)
-                        .content(ChatCompletionUserMessageParam.Content.ofTextContent(userPrompt))
-                        .build()
-        );
+    private static JSONObject createMessage(String role, String content) {
+//        JSONObject contentObj = new JSONObject()
+//                .put("type", "text")
+//                .put("text", content);
+//        JSONArray jsonArray = new JSONArray();
+//        jsonArray.put(contentObj);
+        return new JSONObject()
+                .put("role", role)
+//                .put("content", jsonArray);
+                .put("content", content);
     }
 
-    private static ChatCompletionMessageParam createSystemMessageParam(String systemPrompt) {
-        return ChatCompletionMessageParam.ofChatCompletionSystemMessageParam(
-                ChatCompletionSystemMessageParam.builder()
-                        .role(ChatCompletionSystemMessageParam.Role.SYSTEM)
-                        .content(ChatCompletionSystemMessageParam.Content.ofTextContent(systemPrompt))
-                        .build()
-        );
+    private static JSONObject createSystemMessage(String systemPrompt) {
+        return createMessage("system", systemPrompt);
     }
+
+    private static JSONObject createUserMessage(String userPrompt) {
+        return createMessage("user", userPrompt);
+    }
+
+    private static JSONObject createAssistantMessage(String userPrompt) {
+        return createMessage("assistant", userPrompt);
+    }
+
+
+//
+//    private static ChatCompletionMessageParam createUserMessageParam(String userPrompt) {
+//        return ChatCompletionMessageParam.ofChatCompletionUserMessageParam(
+//                ChatCompletionUserMessageParam.builder()
+//                        .role(ChatCompletionUserMessageParam.Role.USER)
+//                        .content(ChatCompletionUserMessageParam.Content.ofTextContent(userPrompt))
+//                        .build()
+//        );
+//    }
+//
+//    private static ChatCompletionMessageParam createSystemMessageParam(String systemPrompt) {
+//        return ChatCompletionMessageParam.ofChatCompletionSystemMessageParam(
+//                ChatCompletionSystemMessageParam.builder()
+//                        .role(ChatCompletionSystemMessageParam.Role.SYSTEM)
+//                        .content(ChatCompletionSystemMessageParam.Content.ofTextContent(systemPrompt))
+//                        .build()
+//        );
+//    }
 
     private static ChatCompletionMessageParam createAssistantMessageParam(String assistantPrompt) {
         return ChatCompletionMessageParam.ofChatCompletionAssistantMessageParam(
@@ -130,6 +199,39 @@ public class LeasingAssistant {
         );
     }
 
+
+    private static ResponseBody sendChatCompletionRequest(JSONArray messages) throws IOException {
+        OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .build();
+
+        // Build JSON request body
+        JSONObject requestBody = new JSONObject();
+        requestBody.put("model", "gpt-4o-mini"); // Replace with "gpt-3.5-turbo" if required
+        requestBody.put("messages", messages);
+//        requestBody.put("prompt", "write a haiku about coding");
+        requestBody.put("n", 1);
+        JSONObject responseFormat = new JSONObject()
+                .put("type", "text");
+        requestBody.put("response_format", responseFormat);
+
+
+        // Build HTTP request
+        Request request = new Request.Builder()
+                .url(OPENAI_API_URL)
+                .post(RequestBody.create(requestBody.toString(), MediaType.get("application/json")))
+                .addHeader("Authorization", "Bearer " + API_KEY)
+                .build();
+
+        // Execute the request and get the response
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                System.err.println("Unexpected code " + response);
+                throw new IOException("Unexpected code " + response);
+            }
+            return response.body();
+        }
+    }
 
 
 }
