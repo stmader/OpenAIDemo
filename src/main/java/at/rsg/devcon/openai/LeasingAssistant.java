@@ -9,8 +9,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class LeasingAssistant {
 
@@ -53,6 +51,10 @@ public class LeasingAssistant {
             Ich kann dir helfen, das perfekte Auto zu finden.
             Ich kann dir auch erklären, wie Leasing funktioniert und welche Vorteile es hat.
             Frag mich einfach!""";
+
+    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+
+
     private static Interceptor interceptor = chain ->  {
         Request request = chain.request();
         System.out.println("Request: " + request.url());
@@ -126,18 +128,18 @@ public class LeasingAssistant {
 ////                        .streamOptions(ChatCompletionStreamOptions.builder().includeUsage(true).build())
 //                        .build();
 //                ChatCompletion chatCompletion = openAiClient.chat().completions().create(params);
-                ResponseBody result = sendChatCompletionRequest(messages);
+                JSONObject result = sendChatCompletionRequest(messages);
 
 
                 //Antwort von OpenAI auswerten. Falls mehrere Antworten, einfach die erste nehmen. (Defaultmäßig gibt es nur eine)
-//                String choice0 = chatCompletion.choices().get(0)
+                String choice0 = result.getJSONObject("message").getString("content");
 //                        .message().content().get();
 
                 // Antwort anzeigen
-                System.out.println("\n*****Impulsi****:\n" + result.string());
+                System.out.println("\n*****Impulsi****:\n" + choice0);
 
                 // Antwort von OpenAI zu den Messages hinzufügen
-//                chatMessages.add(createAssistantMessageParam(choice0));
+                messages.put(createAssistantMessage(choice0));
 
             } catch (IOException e) {
                 System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());
@@ -190,17 +192,17 @@ public class LeasingAssistant {
 //        );
 //    }
 
-    private static ChatCompletionMessageParam createAssistantMessageParam(String assistantPrompt) {
-        return ChatCompletionMessageParam.ofChatCompletionAssistantMessageParam(
-                ChatCompletionAssistantMessageParam.builder()
-                        .role(ChatCompletionAssistantMessageParam.Role.ASSISTANT)
-                        .content(ChatCompletionAssistantMessageParam.Content.ofTextContent(assistantPrompt))
-                        .build()
-        );
-    }
+//    private static ChatCompletionMessageParam createAssistantMessageParam(String assistantPrompt) {
+//        return ChatCompletionMessageParam.ofChatCompletionAssistantMessageParam(
+//                ChatCompletionAssistantMessageParam.builder()
+//                        .role(ChatCompletionAssistantMessageParam.Role.ASSISTANT)
+//                        .content(ChatCompletionAssistantMessageParam.Content.ofTextContent(assistantPrompt))
+//                        .build()
+//        );
+//    }
 
 
-    private static ResponseBody sendChatCompletionRequest(JSONArray messages) throws IOException {
+    private static JSONObject sendChatCompletionRequest(JSONArray messages) throws IOException {
         OkHttpClient client = new OkHttpClient.Builder()
                 .addInterceptor(interceptor)
                 .build();
@@ -209,7 +211,7 @@ public class LeasingAssistant {
         JSONObject requestBody = new JSONObject();
         requestBody.put("model", "gpt-4o-mini"); // Replace with "gpt-3.5-turbo" if required
         requestBody.put("messages", messages);
-//        requestBody.put("prompt", "write a haiku about coding");
+
         requestBody.put("n", 1);
         JSONObject responseFormat = new JSONObject()
                 .put("type", "text");
@@ -227,9 +229,14 @@ public class LeasingAssistant {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 System.err.println("Unexpected code " + response);
-                throw new IOException("Unexpected code " + response);
+                throw new IOException("Unexpected code " + response + response.body().string());
             }
-            return response.body();
+            String responseBody = response.body().string();
+
+            // Parse JSON using org.json
+            JSONObject json = new JSONObject(responseBody);
+            JSONArray choices = json.getJSONArray("choices");
+            return choices.getJSONObject(0);
         }
     }
 
