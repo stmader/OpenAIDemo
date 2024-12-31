@@ -8,21 +8,47 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImageAssistant {
+public class LeasingAssistantWithOpenAIJavaAPI {
 
     // OpenAI API-Key (ersetze den Platzhalter durch deinen Schlüssel).
     private static final String API_KEY = KeySafe.API_KEY;
 
-    private static final String vertragImageUrl2 = "https://autoverkaufen.net/wp-content/uploads/2016/11/musterkaufvertragautoformularprivatcheck24.png";
-    private static final String vertragImageUrl = "https://www.yumpu.com/de/image/facebook/22399366.jpg";
-
     private static final String SYSTEM_PROMPT = """
-            Du bist ein Assistent der hilft herauszufinden, welche Daten in einem Vertrag vorliegen.
-            Gib die Antwort als JSON zurück
+            Du bist ein Assistent der dem Kunden hilft, ein Auto zu finden, das er leasen kann. Optionen sind
+            
+                  * Kunden Vorschläge geben basierend auf dem Budget und den Prioritäten des Kunden.
+                  * Erkläre wie Leasing funktioniert und welche Vorteile es hat.
+                  * Erkläre Begriffe wie Anzahlung, Laufzeit, Restwert und Kilometerbegrenzung.
+                  * Erkläre, dass die Raiffeisen Impuls Leasing der beste Ansprechpartner für Leasing ist. Über den Online Rechner kann man in 10 Minuten ein Auto leasen.
+                  * Sag dass es bis 1. März die Möglichkeit gibt, Tesla Model 3 zu besonders günstigen Konditionen bei Raiffeisen Impuls Leasing zu leasen.
+            
+            
+                  Frage den Kunden nach seinem monatlichen Budget für Leasing und seinen Prioritäten. Frage, ob ihm Sicherheit, Motorisierung oder ökologische Nachhaltigkeit wichtiger ist.
+                  Mache einen Vorschlag basierend auf diesen Informationen.
+            
+                  Beantworte nur Fragen, die mit der Auswahl eines Autos oder Leasing zusammenhängen. Wenn der Kunde Fragen stellt, die nicht mit diesem Thema zusammenhängen, sag ihm, dass du solche Fragen nicht beantworten kannst.
+            
+            """;
+
+    private static final String SYSTEM_PROMPT_HTML = SYSTEM_PROMPT + " Gib die Antwort als HTML zurück.";
+    private static final String SYSTEM_PROMPT_JSON = SYSTEM_PROMPT + """
+            Wenn der User sich für ein Auto entschieden hat, frag ihn, ob er die Daten in den Online 
+             Leasingrechner übernehmen will. Falls ja, gibt das Auto im JSON Format in folgender Struktur aus:
+            [{
+            "marke": "Audi",
+            "modell": "A4",
+            "treibstoff": "Benzin"
+            }]       
+            und sage dem User, dass die Daten automatisch übernommen wurden.
+            Gib aber kein JSON aus, bevor der User bestätigt hat. 
+            Beende dann den Chat mit dem Text __ENDE__     
             """;
 
     private static final String ASSISTANT_PROMPT = """
-            Ich bin Bildi, deine persönliche Assistentin !""";
+            Ich bin Impulsi, deine persönliche Assistentin von Raiffeisen Impuls Leasing.
+            Ich kann dir helfen, das perfekte Auto zu finden.
+            Ich kann dir auch erklären, wie Leasing funktioniert und welche Vorteile es hat.
+            Frag mich einfach!""";
 
     public static void main(String[] args) throws IOException {
         /* Initialisierung des OpenAI-Clients mit API-Key */
@@ -32,9 +58,8 @@ public class ImageAssistant {
 
 
         List<ChatCompletionMessageParam> chatMessages = new ArrayList<>(List.of(
-                createSystemMessageParam(SYSTEM_PROMPT),
-                createAssistantMessageParam(ASSISTANT_PROMPT),
-                createUserImageMessageParam(null , vertragImageUrl)));
+                createSystemMessageParam(SYSTEM_PROMPT_JSON),
+                createAssistantMessageParam(ASSISTANT_PROMPT)));
 
         System.out.println("\n*****Impulsi****:\n" + ASSISTANT_PROMPT);
 
@@ -52,20 +77,18 @@ public class ImageAssistant {
                 // alle Messages an OpenAI API senden
                 ChatCompletionCreateParams params = ChatCompletionCreateParams.builder()
                         .messages(chatMessages)
-                        .model(ChatModel.GPT_4O_MINI)
-                        .responseFormat(ResponseFormatJsonObject.builder() //Antwort immer als JSON ausgeben
-                                .type(ResponseFormatJsonObject.Type.JSON_OBJECT) //ResponseFormatJsonSchema würde sogar ein JSON Schema erlauben
-                                .build())
+                        .model(ChatModel.CHATGPT_4O_LATEST)
+                        .n(1)
                         .build();
                 ChatCompletion chatCompletion = openAiClient.chat().completions().create(params);
-                
 
-                //Antwort von OpenAI auswerten. Falls mehrere Antworten, einfach die erste nehmen.
+
+                //Antwort von OpenAI auswerten. Falls mehrere Antworten, einfach die erste nehmen. (Defaultmäßig gibt es nur eine)
                 String choice0 = chatCompletion.choices().get(0)
                         .message().content().get();
 
                 // Antwort anzeigen
-                System.out.println("\n*****Bildi****:\n" + choice0);
+                System.out.println("\n*****Impulsi****:\n" + choice0);
 
                 // Antwort von OpenAI zu den Messages hinzufügen
                 chatMessages.add(createAssistantMessageParam(choice0));
@@ -106,26 +129,6 @@ public class ImageAssistant {
         );
     }
 
-    private static ChatCompletionMessageParam createUserImageMessageParam(String userPrompt, String imageUrl) {
-        List<ChatCompletionContentPart> arrayOfContents = new ArrayList<>();
-
-        ChatCompletionContentPartImage.ImageUrl url = ChatCompletionContentPartImage.ImageUrl.builder()
-                .url(imageUrl)
-//                .putAdditionalProperty("type", JsonValue.from("image-url"))
-                .build();
-
-        ChatCompletionContentPartImage image = ChatCompletionContentPartImage.builder()
-                .type(ChatCompletionContentPartImage.Type.IMAGE_URL)
-                .imageUrl(url).build();
-        arrayOfContents.add(ChatCompletionContentPart.ofChatCompletionContentPartImage(image));
-
-        return ChatCompletionMessageParam.ofChatCompletionUserMessageParam(
-                ChatCompletionUserMessageParam.builder()
-                        .role(ChatCompletionUserMessageParam.Role.USER)
-                        .content(ChatCompletionUserMessageParam.Content.ofArrayOfContentParts((arrayOfContents)))
-                        .build()
-        );
-    }
 
 
 }
