@@ -73,12 +73,10 @@ public class LeasingAssistantWithSimpleOpenAI {
             Ich kann dir auch erklären, wie Leasing funktioniert und welche Vorteile es hat.
             Frag mich einfach!""";
 
-    private static final String OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-
 
     public static void main(String[] args) throws IOException {
         var openAI = SimpleOpenAI.builder()
-                .apiKey(KeySafe.API_KEY)
+                .apiKey(API_KEY)
                 .build();
 
         List<ChatMessage> chatMessages = new ArrayList<>(List.of(
@@ -91,10 +89,11 @@ public class LeasingAssistantWithSimpleOpenAI {
             try {
                 // Eingabe des Nutzers lesen
                 String userInput = InputHelper.readLine("\n*****Du****: \n");
-
                 chatMessages.add(ChatMessage.UserMessage.of(userInput));
-//                askOpenAI(openAI, chatMessages);
-                askOpenAIWithStreaming(openAI, chatMessages);
+
+//                String assistentResponse = askOpenAI(openAI, chatMessages);
+                String assistentResponse = askOpenAIWithStreaming(openAI, chatMessages);
+                chatMessages.add(ChatMessage.AssistantMessage.of(assistentResponse));
             } catch (IOException e) {
                 System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());
                 break;
@@ -103,7 +102,7 @@ public class LeasingAssistantWithSimpleOpenAI {
 
     }
 
-    private static void askOpenAI(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
+    private static String askOpenAI(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
         var chatRequest = ChatRequest.builder()
                 .model(ChatModel.CHATGPT_4O_LATEST.toString())
                 .messages(chatMessages)
@@ -114,10 +113,10 @@ public class LeasingAssistantWithSimpleOpenAI {
         var chatResponse = futureChat.join();
         String openAIResponse = chatResponse.firstContent();
         System.out.println(openAIResponse);
-        chatMessages.add(ChatMessage.AssistantMessage.of(openAIResponse));
+        return openAIResponse;
     }
 
-    private static void askOpenAIWithStreaming(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
+    private static String askOpenAIWithStreaming(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
         var chatRequest = ChatRequest.builder()
                 .model(ChatModel.CHATGPT_4O_LATEST.toString())
                 .messages(chatMessages)
@@ -129,8 +128,9 @@ public class LeasingAssistantWithSimpleOpenAI {
         StringBuffer result = new StringBuffer();
         chatResponse.filter(chatResp -> chatResp.getChoices().size() > 0 && chatResp.firstContent() != null)
                 .forEach(chatResp -> result.append(LeasingAssistantWithSimpleOpenAI.processResponseChunk(chatResp)));
-        chatMessages.add(ChatMessage.AssistantMessage.of(result.toString()));
         System.out.println();
+        return result.toString();
+
     }
 
     private static String processResponseChunk( Chat responseChunk) {
