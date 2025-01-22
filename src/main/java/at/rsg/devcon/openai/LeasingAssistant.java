@@ -105,20 +105,20 @@ public class LeasingAssistant {
                 .put("content", content);
     }
 
-    private static JSONObject createSystemMessage(String systemPrompt) {
+    public static JSONObject createSystemMessage(String systemPrompt) {
         return createMessage("system", systemPrompt);
     }
 
-    private static JSONObject createUserMessage(String userPrompt) {
+    public static JSONObject createUserMessage(String userPrompt) {
         return createMessage("user", userPrompt);
     }
 
-    private static JSONObject createAssistantMessage(String userPrompt) {
+    public static JSONObject createAssistantMessage(String userPrompt) {
         return createMessage("assistant", userPrompt);
     }
 
 
-    private static JSONObject sendChatCompletionRequest(JSONArray messages) throws IOException {
+    public static JSONObject sendChatCompletionRequest(JSONArray messages) throws IOException {
         OkHttpClient client = new OkHttpClient.Builder()
 //                .addInterceptor(interceptor)
                 .build();
