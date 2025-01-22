@@ -1,21 +1,39 @@
 package at.rsg.devcon.openai;
 
-import com.openai.models.Completion;
+import com.openai.models.ChatModel;
 import io.github.sashirestela.openai.SimpleOpenAI;
 import io.github.sashirestela.openai.domain.chat.Chat;
 import io.github.sashirestela.openai.domain.chat.ChatMessage;
 import io.github.sashirestela.openai.domain.chat.ChatRequest;
-import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * https://github.com/sashirestela/simple-openai?tab=readme-ov-file#chat-completion-example
- * https://github.com/sashirestela/simple-openai/blob/main/src/demo/java/io/github/sashirestela/openai/demo/ChatDemo.java
+ * The LeasingAssistantWithSimpleOpenAI class implements an interactive chatbot
+ * designed to assist customers in selecting leased cars and explaining the
+ * leasing process. The chatbot interacts with the OpenAI API to provide
+ * intelligent responses and suggestions tailored to the user's preferences
+ * and budget. This implementation uses the SimpleOpenAI library for interaction.
+ *
+ * Functionality includes:
+ * - Recommending cars based on the customer's leasing budget and priorities.
+ * - Explaining various leasing-related terms such as down payment, mileage limit, etc.
+ * - Highlighting promotional deals for specific car models.
+ * - Interacting with users via a terminal-based interface.
+ * - Optionally delivering responses in structured HTML or JSON formats based on system prompts.
+ *
+ * System prompts guide the chatbot's behavior and include both general and specific instructions
+ * for engaging with the customer. A secondary feature enables outputting car-related data in JSON
+ * format after user confirmation.
+ *
+ * The implementation uses methods for either synchronous or streaming interaction with the OpenAI API.
+ * The chatbot maintains a conversation context using a List of ChatMessage objects, where each message
+ * represents user input or assistant output.
  */
 public class LeasingAssistantWithSimpleOpenAI {
-    // OpenAI API-Key (ersetze den Platzhalter durch deinen Schlüssel).
+    // OpenAI API-Key .
     private static final String API_KEY = KeySafe.API_KEY;
 
     private static final String SYSTEM_PROMPT = """
@@ -63,51 +81,65 @@ public class LeasingAssistantWithSimpleOpenAI {
                 .apiKey(KeySafe.API_KEY)
                 .build();
 
-        askOpenAI(openAI);
+        List<ChatMessage> chatMessages = new ArrayList<>(List.of(
+                ChatMessage.SystemMessage.of(SYSTEM_PROMPT),
+                ChatMessage.AssistantMessage.of(ASSISTANT_PROMPT)));
 
-        askOpenAIWithStreaming(openAI);
+        System.out.println("\n*****Impulsi****:\n" + ASSISTANT_PROMPT);
+
+        while (true) {
+            try {
+                // Eingabe des Nutzers lesen
+                String userInput = InputHelper.readLine("\n*****Du****: \n");
+
+                chatMessages.add(ChatMessage.UserMessage.of(userInput));
+//                askOpenAI(openAI, chatMessages);
+                askOpenAIWithStreaming(openAI, chatMessages);
+            } catch (IOException e) {
+                System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());
+                break;
+            }
+        }
 
     }
 
-    private static String askOpenAI(SimpleOpenAI openAI) {
+    private static void askOpenAI(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
         var chatRequest = ChatRequest.builder()
-                .model("gpt-4o-mini")
-                .message(ChatMessage.SystemMessage.of("You are an expert in AI."))
-                .message(ChatMessage.UserMessage.of("Write a technical article about ChatGPT, no more than 100 words."))
-                .temperature(0.0)
-                .maxCompletionTokens(3000)
+                .model(ChatModel.CHATGPT_4O_LATEST.toString())
+                .messages(chatMessages)
+//                .temperature(0.0)
+                .n(1)
                 .build();
         var futureChat = openAI.chatCompletions().create(chatRequest);
         var chatResponse = futureChat.join();
         String openAIResponse = chatResponse.firstContent();
         System.out.println(openAIResponse);
-        return openAIResponse;
+        chatMessages.add(ChatMessage.AssistantMessage.of(openAIResponse));
     }
 
-    private static String askOpenAIWithStreaming(SimpleOpenAI openAI) {
+    private static void askOpenAIWithStreaming(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
         var chatRequest = ChatRequest.builder()
-                .model("gpt-4o-mini")
-                .message(ChatMessage.SystemMessage.of("You are an expert in AI."))
-                .message(ChatMessage.UserMessage.of("Write a technical article about ChatGPT, no more than 100 words."))
-                .temperature(0.0)
-                .maxCompletionTokens(300)
+                .model(ChatModel.CHATGPT_4O_LATEST.toString())
+                .messages(chatMessages)
+//                .temperature(0.0)
+                .n(1)
                 .build();
         var futureChat = openAI.chatCompletions().createStream(chatRequest);
         var chatResponse = futureChat.join();
+        StringBuffer result = new StringBuffer();
         chatResponse.filter(chatResp -> chatResp.getChoices().size() > 0 && chatResp.firstContent() != null)
-//                .map(Chat::firstContent)
-                .forEach(LeasingAssistantWithSimpleOpenAI::processResponseChunk);
+                .forEach(chatResp -> result.append(LeasingAssistantWithSimpleOpenAI.processResponseChunk(chatResp)));
+        chatMessages.add(ChatMessage.AssistantMessage.of(result.toString()));
         System.out.println();
-        return "TODO"
-                ;
     }
 
-    private static void processResponseChunk(Chat responseChunk) {
+    private static String processResponseChunk( Chat responseChunk) {
         var choices = responseChunk.getChoices();
         if (!choices.isEmpty()) {
             var delta = choices.get(0).getMessage();
             if (delta.getContent() != null) {
                 System.out.print(delta.getContent());
+                return delta.getContent();
             }
         }
         var usage = responseChunk.getUsage();
@@ -115,5 +147,6 @@ public class LeasingAssistantWithSimpleOpenAI {
             System.out.println("\n");
             System.out.println(usage);
         }
+        return "\n";
     }
 }
