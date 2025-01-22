@@ -1,5 +1,7 @@
-package at.rsg.devcon.openai;
+package at.rsg.devcon.openai.simpleopenai;
 
+import at.rsg.devcon.openai.InputHelper;
+import at.rsg.devcon.openai.KeySafe;
 import com.openai.models.ChatModel;
 import io.github.sashirestela.openai.SimpleOpenAI;
 import io.github.sashirestela.openai.domain.chat.Chat;
@@ -31,6 +33,7 @@ import java.util.List;
  * The implementation uses methods for either synchronous or streaming interaction with the OpenAI API.
  * The chatbot maintains a conversation context using a List of ChatMessage objects, where each message
  * represents user input or assistant output.
+ * @see <a href="https://github.com/sashirestela/simple-openai">simple-openai</a>
  */
 public class LeasingAssistantWithSimpleOpenAI {
     // OpenAI API-Key .
@@ -91,8 +94,9 @@ public class LeasingAssistantWithSimpleOpenAI {
                 String userInput = InputHelper.readLine("\n*****Du****: \n");
                 chatMessages.add(ChatMessage.UserMessage.of(userInput));
 
-//                String assistentResponse = askOpenAI(openAI, chatMessages);
-                String assistentResponse = askOpenAIWithStreaming(openAI, chatMessages);
+                //den ganzen bisherigen Chatverlauf an openAI API senden und auf Antwort warten
+                String assistentResponse = askOpenAI(openAI, chatMessages);
+//                String assistentResponse = askOpenAIWithStreaming(openAI, chatMessages);
                 chatMessages.add(ChatMessage.AssistantMessage.of(assistentResponse));
             } catch (IOException e) {
                 System.err.println("Ein Fehler ist aufgetreten: " + e.getMessage());

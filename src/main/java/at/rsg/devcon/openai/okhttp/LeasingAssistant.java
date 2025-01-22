@@ -1,8 +1,7 @@
-package at.rsg.devcon.openai;
+package at.rsg.devcon.openai.okhttp;
 
-import com.openai.client.OpenAIClient;
-import com.openai.client.okhttp.OpenAIOkHttpClient;
-import com.openai.models.*;
+import at.rsg.devcon.openai.InputHelper;
+import at.rsg.devcon.openai.KeySafe;
 import okhttp3.*;
 import okio.Buffer;
 import org.json.JSONArray;
@@ -56,10 +55,7 @@ public class LeasingAssistant {
 
 
     public static void main(String[] args) throws IOException {
-        /* Initialisierung des OpenAI-Clients mit API-Key */
-        OpenAIClient openAiClient = OpenAIOkHttpClient.builder()
-                .apiKey(API_KEY)
-                .build();
+
 
         // Build chat messages
         JSONArray messages = new JSONArray();
