@@ -43,18 +43,14 @@ public class StructuredOutputs {
                         .build()))
                 .build();
         var chatResponse = openAI.chatCompletions().createStream(chatRequest).join();
+        StringBuffer allResults = new StringBuffer();
         chatResponse.filter(chatResp -> chatResp.getChoices().size() > 0 && chatResp.firstContent() != null)
                 .map(Chat::firstContent)
-                .forEach(result -> printResult(result));
-        System.out.println();
+                .forEach(result -> allResults.append(result));
+        org.json.JSONObject json = new org.json.JSONObject(allResults.toString());
+        System.out.println(json.toString(4));
     }
 
-    private static void printResult(String result) {
-        System.out.print(result);
-        if (result.contains("}")) {
-            System.out.println();
-        }
-    }
 
     public static class MathReasoning {
 
