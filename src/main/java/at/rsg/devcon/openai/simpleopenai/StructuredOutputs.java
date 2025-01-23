@@ -9,7 +9,6 @@ import io.github.sashirestela.openai.domain.chat.ChatMessage;
 import io.github.sashirestela.openai.domain.chat.ChatRequest;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -26,20 +25,24 @@ public class StructuredOutputs {
         var openAI = SimpleOpenAI.builder()
                 .apiKey(API_KEY)
                 .build();
-
-        demoCallChatWithStructuredOutputs(openAI);
+        while (true) {
+            demoCallChatWithStructuredOutputs(openAI);
+        }
 
     }
 
-    public static void demoCallChatWithStructuredOutputs(SimpleOpenAI openAI) {
+    public static void demoCallChatWithStructuredOutputs(SimpleOpenAI openAI) throws IOException {
+
+        String userInput = InputHelper.readLine("\n*****Bitte ein Auto eingeben****: \n");
+
         var chatRequest = ChatRequest.builder()
                 .model("gpt-4o-mini")
                 .message(ChatMessage.SystemMessage
-                        .of("You are a helpful math tutor. Guide the user through the solution step by step."))
-                .message(ChatMessage.UserMessage.of("How can I solve 8x + 7 = -23"))
+                        .of("Du gibst Informationen zu Autos, insbesondere ihre Höchstgeschwindigkeit, Beschleunigung und Leistung."))
+                .message(ChatMessage.UserMessage.of(userInput))
                 .responseFormat(ResponseFormat.jsonSchema(ResponseFormat.JsonSchema.builder()
-                        .name("MathReasoning")
-                        .schemaClass(MathReasoning.class)
+                        .name("Car")
+                        .schemaClass(Car.class)
                         .build()))
                 .build();
         var chatResponse = openAI.chatCompletions().createStream(chatRequest).join();
@@ -48,19 +51,25 @@ public class StructuredOutputs {
                 .map(Chat::firstContent)
                 .forEach(result -> allResults.append(result));
         org.json.JSONObject json = new org.json.JSONObject(allResults.toString());
-        System.out.println(json.toString(4));
+        System.out.println("Car Assistent:" + json.toString(4));
     }
 
 
-    public static class MathReasoning {
+    /**
+     * Represents a car with its basic details.
+     * This class provides information about a car's brand and model,
+     * and contains a nested class representing the car's features.
+     */
+    public static class Car {
 
-        public List<Step> steps;
-        public String finalAnswer;
+        public String carBrand;
+        public String carModel;
+        public Features features;
 
-        public static class Step {
-
-            public String explanation;
-            public String output;
+        public static class Features {
+            public int maxSpeedInKmH;
+            public int powerInKW;
+            public String acceleration;
 
         }
 
