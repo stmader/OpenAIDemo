@@ -38,12 +38,14 @@ public class StructuredOutputs {
         var chatRequest = ChatRequest.builder()
                 .model("gpt-4o-mini")
                 .message(ChatMessage.SystemMessage
-                        .of("Du gibst Informationen zu Autos, insbesondere ihre Höchstgeschwindigkeit, Beschleunigung und Leistung."))
+                        .of("Du gibst Informationen zu Autos, insbesondere ihre Höchstgeschwindigkeit, Beschleunigung und Leistung. Bei der Leistung gib auch Details an."))
                 .message(ChatMessage.UserMessage.of(userInput))
                 .responseFormat(ResponseFormat.jsonSchema(ResponseFormat.JsonSchema.builder()
                         .name("Car")
                         .schemaClass(Car.class)
+                        .description("information about a car's maxSpeed in km per hour, power in kiloWatt and acceleration")
                         .build()))
+                .temperature(0.0)
                 .build();
         var chatResponse = openAI.chatCompletions().createStream(chatRequest).join();
         StringBuffer allResults = new StringBuffer();
@@ -67,8 +69,9 @@ public class StructuredOutputs {
         public Features features;
 
         public static class Features {
-            public int maxSpeedInKmH;
-            public int powerInKW;
+            public int maxSpeed;
+            public int powerInKilowatt;
+            public String detailedPowerInformation;
             public String acceleration;
 
         }
