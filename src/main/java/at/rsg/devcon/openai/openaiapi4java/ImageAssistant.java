@@ -16,7 +16,6 @@ public class ImageAssistant {
     private static final String API_KEY = KeySafe.API_KEY;
 
     private static final String vertragImageUrl = "https://autoverkaufen.net/wp-content/uploads/2016/11/musterkaufvertragautoformularprivatcheck24.png";
-    private static final String vertragImageUrl2 = "https://www.yumpu.com/de/image/facebook/22399366.jpg";
 
     private static final String SYSTEM_PROMPT = """
             Du bist ein Assistent der hilft herauszufinden, welche Daten in einem Vertrag vorliegen.
