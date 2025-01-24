@@ -56,19 +56,8 @@ public class LeasingAssistantWithSimpleOpenAI {
             
             """;
 
+    //Alternativer Prompt
     private static final String SYSTEM_PROMPT_HTML = SYSTEM_PROMPT + " Gib die Antwort als HTML zurück.";
-    private static final String SYSTEM_PROMPT_JSON = SYSTEM_PROMPT + """
-            Wenn der User sich für ein Auto entschieden hat, frag ihn, ob er die Daten in den Online 
-             Leasingrechner übernehmen will. Falls ja, gibt das Auto im JSON Format in folgender Struktur aus:
-            [{
-            "marke": "Audi",
-            "modell": "A4",
-            "treibstoff": "Benzin"
-            }]       
-            und sage dem User, dass die Daten automatisch übernommen wurden.
-            Gib aber kein JSON aus, bevor der User bestätigt hat. 
-            Beende dann den Chat mit dem Text __ENDE__     
-            """;
 
     private static final String ASSISTANT_PROMPT = """
             Ich bin Impulsi, deine persönliche Assistentin von Raiffeisen Impuls Leasing.
