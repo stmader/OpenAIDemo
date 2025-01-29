@@ -108,7 +108,7 @@ public class LeasingAssistantWithStreaming {
 
     private static String askOpenAI(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
         var chatRequest = ChatRequest.builder()
-                .model(ChatModel.CHATGPT_4O_LATEST.toString())
+                .model(ChatModel.GPT_4O_MINI.toString())
                 .messages(chatMessages)
 //                .temperature(0.0)
                 .n(1)

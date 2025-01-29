@@ -109,22 +109,6 @@ public class LeasingAssistantWithSimpleOpenAI {
         return openAIResponse;
     }
 
-    private static String askOpenAIWithStreaming(SimpleOpenAI openAI, List<ChatMessage> chatMessages) {
-        var chatRequest = ChatRequest.builder()
-                .model(ChatModel.CHATGPT_4O_LATEST.toString())
-                .messages(chatMessages)
-//                .temperature(0.0)
-                .n(1)
-                .build();
-        var futureChat = openAI.chatCompletions().createStream(chatRequest);
-        var chatResponse = futureChat.join();
-        StringBuffer result = new StringBuffer();
-        chatResponse.filter(chatResp -> chatResp.getChoices().size() > 0 && chatResp.firstContent() != null)
-                .forEach(chatResp -> result.append(LeasingAssistantWithSimpleOpenAI.processResponseChunk(chatResp)));
-        System.out.println();
-        return result.toString();
-
-    }
 
     private static String processResponseChunk( Chat responseChunk) {
         var choices = responseChunk.getChoices();

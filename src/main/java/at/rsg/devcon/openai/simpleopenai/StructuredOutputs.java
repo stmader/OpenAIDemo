@@ -47,12 +47,11 @@ public class StructuredOutputs {
                         .build()))
                 .temperature(0.0)
                 .build();
-        var chatResponse = openAI.chatCompletions().createStream(chatRequest).join();
-        StringBuffer allResults = new StringBuffer();
-        chatResponse.filter(chatResp -> chatResp.getChoices().size() > 0 && chatResp.firstContent() != null)
-                .map(Chat::firstContent)
-                .forEach(result -> allResults.append(result));
-        org.json.JSONObject json = new org.json.JSONObject(allResults.toString());
+
+        var chatResponse = openAI.chatCompletions().create(chatRequest).join();
+        String result = chatResponse.firstContent();
+
+        org.json.JSONObject json = new org.json.JSONObject(result);
         System.out.println("Car Assistent:" + json.toString(4));
     }
 
